@@ -23,12 +23,20 @@ A single-package Go `c-shared` plugin for CLIProxyAPI, split in two files:
 - `abi.go` is the C ABI bridge. It exports `cliproxy_plugin_init`,
   `cliproxyPluginCall`, `cliproxyPluginFree` and `cliproxyPluginShutdown`, then
   forwards every call into `handleMethod`. It contains no plugin logic.
-- `main.go` holds the logic: `pluginRegistration` declares metadata and
-  capabilities, `interceptResponse` decides whether a response is a catalog, and
-  `sortModelCatalog` does the sorting.
+- `main.go` holds the logic: `pluginRegistration` declares metadata,
+  capabilities and config fields, `applyConfig` parses the plugin's YAML block,
+  `interceptResponse` decides whether a response is a catalog, and
+  `curateModelCatalog` hides, orders and pins entries in that sequence.
 
 The host communicates over JSON envelopes (`{"ok":true,"result":{}}`). The C ABI
 passes only method names and byte slices; no Go types cross the boundary.
+
+Configuration arrives in the `config_yaml` field of the register and reconfigure
+calls, carrying the raw YAML of `plugins.configs.model-sort`. It is a `[]byte`
+on the host side, so JSON transports it base64-encoded — decode it into a
+`[]byte` field and let encoding/json handle that, never into a string. The host
+calls reconfigure whenever the configuration reloads, so settings apply without
+a restart.
 
 ## Invariants
 
@@ -44,6 +52,19 @@ if the tests still compile.
   must return an empty response rather than a guess.
 - **Sort on `id`, falling back to `name`.** The Gemini listing keys on `name`;
   an id-only comparator leaves it unsorted while appearing to work.
+- **`hidden` must never affect routing.** It removes entries from catalog
+  responses only; a hidden model stays fully requestable. That separation is the
+  entire point of the setting versus `force-model-prefix`, and
+  `TestHiddenModelStillCompletes` locks it down.
+- **Curate in the order hide, sort, pin.** Pinning before sorting would let the
+  sort undo the pins, and hiding last would waste work on dropped entries.
+- **Every advertised config field must be read by the plugin.** A field in
+  `ConfigFields` that `applyConfig` ignores shows up in the management panel as
+  a setting that silently does nothing; `TestConfigFieldsMatchSettings` keeps
+  the two in sync.
+- **An absent config block resets to defaults.** Removing a key from
+  `config.yaml` must take effect on reconfigure rather than leaving the previous
+  value active.
 - **Declare only the capabilities that are implemented.** A stray `true` in
   `registrationCapability` makes the host call a method that does not exist.
 - **All four metadata fields must be non-empty.** `validPlugin` in the host
@@ -82,5 +103,11 @@ plus `checksums.txt`. Archive names are
 library at the zip root with no nested directories —
 `.github/scripts/package-release.go` verifies this before writing the checksum,
 because the store installer rejects any other layout.
+
+The platform matrix mirrors the plugin-capable builds CLIProxyAPI itself ships:
+linux, darwin and windows on amd64 and arm64, plus freebsd/amd64. Native runners
+cover everything except windows/arm64 (`go-cross/cgo-actions`) and FreeBSD,
+which needs a hand-fetched sysroot — see the `build-freebsd` job. Do not add
+freebsd/arm64: Go cannot build `c-shared` for it.
 
 Do not commit build output: `dist/`, `*.zip`, `*.so`, `*.dylib`, `*.dll`, `*.h`.
