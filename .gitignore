@@ -1,0 +1,10 @@
+# Build output
+dist/
+*.zip
+*.zip.sha256
+
+# c-shared artifacts
+*.so
+*.dylib
+*.dll
+*.h

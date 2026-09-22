@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "plugins": [
+    {
+      "id": "model-sort",
+      "name": "Model Sort",
+      "description": "Sorts the model catalog so /v1/models, /v1beta/models and the Claude listing return a stable alphabetical order instead of a new random order on every restart.",
+      "author": "dotiful",
+      "repository": "https://github.com/dotiful/cpa-plugin-model-sort",
+      "homepage": "https://github.com/dotiful/cpa-plugin-model-sort",
+      "license": "MIT",
+      "tags": ["Interceptor", "Models"]
+    }
+  ]
+}
