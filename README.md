@@ -152,6 +152,10 @@ dynamically linked: CPA loads plugins with `dlopen`, which a static binary
 cannot do. Build against the same libc as the target — a musl/Alpine build will
 not load on a glibc host.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
 MIT

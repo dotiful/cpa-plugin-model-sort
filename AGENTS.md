@@ -104,6 +104,11 @@ library at the zip root with no nested directories —
 `.github/scripts/package-release.go` verifies this before writing the checksum,
 because the store installer rejects any other layout.
 
+Add the `CHANGELOG.md` section before tagging. The release job extracts the
+`## <version> — <date>` section and publishes it as the release notes, and fails
+when the section is missing, so a release cannot ship undocumented. Write entries
+as what changed and why it mattered, not as a restatement of the commit subject.
+
 The platform matrix mirrors the plugin-capable builds CLIProxyAPI itself ships:
 linux, darwin and windows on amd64 and arm64, plus freebsd/amd64. Native runners
 cover everything except windows/arm64 (`go-cross/cgo-actions`) and FreeBSD,

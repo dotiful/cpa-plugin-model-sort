@@ -285,6 +285,27 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          path: repo
+
+      - name: Extract release notes
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Print the section for this version, stopping at the next "## " heading.
+          awk -v v="${VERSION}" '
+            index($0, "## " v " ") == 1 { found = 1; next }
+            found && index($0, "## ") == 1 { exit }
+            found { print }
+          ' repo/CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md has no section for ${VERSION}" >&2
+            exit 1
+          fi
+          cat notes.md
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -299,5 +320,5 @@ jobs:
               --repo "${GITHUB_REPOSITORY}" \
               --verify-tag \
               --title "${GITHUB_REF_NAME}" \
-              --notes "Automated release for ${GITHUB_REF_NAME}. See README for installation and configuration."
+              --notes-file notes.md
           fi
