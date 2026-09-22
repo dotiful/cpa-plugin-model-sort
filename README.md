@@ -34,7 +34,7 @@ Covered endpoints:
 | Endpoint | Format | Sort key |
 | --- | --- | --- |
 | `GET /v1/models` | OpenAI | `id` |
-| `GET /v1/models` with `Anthropic-Version` | Claude | `id` |
+| `GET /v1/models` with `Anthropic-Version` or a `claude-cli` agent | Claude | `id` |
 | `GET /v1beta/models` | Gemini | `name` |
 
 The Gemini format keys on `name` rather than `id`, so an id-only comparator
@@ -125,7 +125,7 @@ inside `StateDirectory`; `/usr/local` is read-only there.
 The service log must show `plugin registered`, not merely `plugin loaded`:
 
 ```
-pluginhost: plugin registered plugin_id=model-sort plugin_name=model-sort version=0.2.0
+pluginhost: plugin registered plugin_id=model-sort plugin_name=model-sort version=0.3.0
 ```
 
 Then confirm the catalog is ordered:
