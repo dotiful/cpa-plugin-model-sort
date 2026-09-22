@@ -4,12 +4,13 @@
     {
       "id": "model-sort",
       "name": "Model Sort",
-      "description": "Sorts the model catalog so /v1/models, /v1beta/models and the Claude listing return a stable alphabetical order instead of a new random order on every restart.",
+      "description": "Returns the model catalog in a stable order instead of a new random order on every restart, and can pin models to the top or hide them from catalog responses without affecting routing. Covers the OpenAI, Claude and Gemini listings.",
       "author": "dotiful",
       "repository": "https://github.com/dotiful/cpa-plugin-model-sort",
+      "logo": "https://raw.githubusercontent.com/dotiful/cpa-plugin-model-sort/main/logo.svg",
       "homepage": "https://github.com/dotiful/cpa-plugin-model-sort",
       "license": "MIT",
-      "tags": ["Interceptor", "Models"]
+      "tags": ["Interceptor", "Compatibility"]
     }
   ]
 }

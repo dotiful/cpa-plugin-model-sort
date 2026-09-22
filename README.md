@@ -1,7 +1,7 @@
 # Model Sort
 
-A CLIProxyAPI plugin that returns the model catalog in a stable alphabetical
-order instead of a different random order on every restart.
+A CLIProxyAPI plugin that returns the model catalog in a stable order instead of
+a different random order on every restart, and lets you pin or hide entries.
 
 ## The problem
 
@@ -17,7 +17,7 @@ and closed — and there is no `model-list-sort` configuration option.
 
 ## What it does
 
-The plugin sorts model listings on their way out and leaves everything else
+The plugin curates model listings on their way out and leaves everything else
 untouched. Model listings pass through the response interceptor chain just like
 completions do, so no forked binary is required: `WriteModelListResponse`
 (`sdk/api/handlers/handlers_interceptors.go`) invokes the chain, and
@@ -67,9 +67,37 @@ plugins:
       enabled: true
 ```
 
-The plugin has no options of its own. Both `plugins.enabled` and the per-plugin
-`enabled` are required — with only the global switch the plugin is listed but
-stays inactive.
+Both `plugins.enabled` and the per-plugin `enabled` are required — with only the
+global switch the plugin is listed but stays inactive.
+
+All plugin settings are optional; the defaults sort ascending and change nothing
+else. Settings are re-read on configuration reload, so changing them does not
+require a restart.
+
+| Setting | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `order` | `asc` \| `desc` | `asc` | Sort direction. |
+| `pinned` | list of model IDs | empty | Kept at the top, in the order listed. |
+| `hidden` | list of model IDs | empty | Removed from catalog responses. |
+
+```yaml
+    model-sort:
+      enabled: true
+      order: asc
+      pinned:
+        - anthropic-claude-opus-4-6
+        - anthropic-claude-sonnet-4-6
+      hidden:
+        - legacy-model
+```
+
+`hidden` only edits the listing: hidden models stay fully requestable, which is
+the catalog-only filtering asked for in
+[issue #5349](https://github.com/router-for-me/CLIProxyAPI/issues/5349).
+`force-model-prefix: true` hides duplicates too, but it also changes routing.
+
+Pinned and hidden IDs are matched as written in the catalog. For the Gemini
+listing, which reports `models/<id>`, the bare ID matches as well.
 
 Under a hardened systemd unit (`ProtectSystem=strict`), point `dir` at a path
 inside `StateDirectory`; `/usr/local` is read-only there.
@@ -97,6 +125,9 @@ Restart the service a few times and re-run it; the answer must stay `True`.
   `X-CPA-SUPPORT-PLUGIN: 1` when the running binary supports plugins; `0` means
   the binary was built without cgo and will ignore every `.so`.
 - Verified against CLIProxyAPI 7.3.12.
+
+Releases cover the same platforms CLIProxyAPI itself publishes a plugin-capable
+build for: linux, darwin and windows on amd64 and arm64, plus freebsd/amd64.
 
 ## Build from source
 

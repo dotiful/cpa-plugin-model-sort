@@ -1,11 +1,12 @@
-// Package main implements a CLIProxyAPI plugin that sorts the model catalog.
+// Package main implements a CLIProxyAPI plugin that curates the model catalog.
 //
 // CPA builds its catalog by ranging over a Go map, so the order of /v1/models
 // is randomized on every process start. Upstream declined to sort it
 // (issue #3081 -> discussion #3888, closed), which leaves client model pickers
 // reshuffled after each restart.
 //
-// The plugin sorts the listing in response.intercept_after. Model listings pass
+// The plugin sorts the listing in response.intercept_after, and can optionally
+// pin entries to the top or hide them from the catalog. Model listings pass
 // through the response interceptor chain just like completions do: see
 // WriteModelListResponse in sdk/api/handlers/handlers_interceptors.go and the
 // coverage in internal/api/server_models_interceptor_test.go.
@@ -13,10 +14,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginabi"
 	"github.com/router-for-me/CLIProxyAPI/v7/sdk/pluginapi"
+	"gopkg.in/yaml.v3"
 )
 
 // pluginID must match the shared library filename, which CPA uses as the
@@ -26,6 +30,11 @@ const pluginID = "model-sort"
 // pluginVersion is injected at release build time with
 // -ldflags "-X main.pluginVersion=<version>".
 var pluginVersion = "0.0.0-dev"
+
+const (
+	orderAscending  = "asc"
+	orderDescending = "desc"
+)
 
 type envelope struct {
 	OK     bool            `json:"ok"`
@@ -51,9 +60,33 @@ type registrationCapability struct {
 	ResponseInterceptor bool `json:"response_interceptor"`
 }
 
+// lifecycleRequest is what the host sends with register and reconfigure.
+// ConfigYAML carries the plugin's own block under plugins.configs.<id>; it is
+// a []byte on the host side, so JSON transports it base64-encoded.
+type lifecycleRequest struct {
+	ConfigYAML []byte `json:"config_yaml"`
+}
+
+// settings mirrors the plugin's YAML block. Every field is optional, and the
+// zero value is the documented default: ascending order, nothing pinned,
+// nothing hidden.
+type settings struct {
+	Order  string   `yaml:"order"`
+	Pinned []string `yaml:"pinned"`
+	Hidden []string `yaml:"hidden"`
+}
+
+// config is the active configuration. The host calls reconfigure on config
+// changes, and plugin calls are serialized by the host, so a plain variable is
+// sufficient here.
+var config = settings{Order: orderAscending}
+
 func handleMethod(method string, request []byte) ([]byte, error) {
 	switch method {
 	case pluginabi.MethodPluginRegister, pluginabi.MethodPluginReconfigure:
+		if errApply := applyConfig(request); errApply != nil {
+			return errorEnvelope("invalid_config", errApply.Error()), nil
+		}
 		return okEnvelope(pluginRegistration())
 	case pluginabi.MethodPluginShutdown:
 		return okEnvelope(map[string]any{})
@@ -62,6 +95,56 @@ func handleMethod(method string, request []byte) ([]byte, error) {
 	default:
 		return errorEnvelope("unknown_method", "unknown method: "+method), nil
 	}
+}
+
+// applyConfig parses the plugin's YAML block. An empty or absent block resets
+// the configuration to its defaults, so removing a key in config.yaml takes
+// effect on reconfigure rather than lingering from the previous state.
+func applyConfig(request []byte) error {
+	parsed := settings{}
+	if len(request) > 0 {
+		var lifecycle lifecycleRequest
+		if errUnmarshal := json.Unmarshal(request, &lifecycle); errUnmarshal != nil {
+			return errUnmarshal
+		}
+		if len(lifecycle.ConfigYAML) > 0 {
+			if errYAML := yaml.Unmarshal(lifecycle.ConfigYAML, &parsed); errYAML != nil {
+				return errYAML
+			}
+		}
+	}
+
+	switch strings.ToLower(strings.TrimSpace(parsed.Order)) {
+	case "", orderAscending:
+		parsed.Order = orderAscending
+	case orderDescending:
+		parsed.Order = orderDescending
+	default:
+		return fmt.Errorf("order must be %q or %q, got %q", orderAscending, orderDescending, parsed.Order)
+	}
+	parsed.Pinned = cleanList(parsed.Pinned)
+	parsed.Hidden = cleanList(parsed.Hidden)
+
+	config = parsed
+	return nil
+}
+
+// cleanList trims entries and drops empties, so a stray "- " in YAML cannot
+// pin or hide the empty model ID.
+func cleanList(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func pluginRegistration() registration {
@@ -76,12 +159,37 @@ func pluginRegistration() registration {
 			Version:          pluginVersion,
 			Author:           "dotiful",
 			GitHubRepository: "https://github.com/dotiful/cpa-plugin-model-sort",
+			Logo:             "https://raw.githubusercontent.com/dotiful/cpa-plugin-model-sort/main/logo.svg",
+			ConfigFields:     configFields(),
 		},
 		Capabilities: registrationCapability{ResponseInterceptor: true},
 	}
 }
 
-// interceptResponse sorts model listings and leaves every other response
+// configFields tells management clients which settings this plugin owns so the
+// panel can render a form for them.
+func configFields() []pluginapi.ConfigField {
+	return []pluginapi.ConfigField{
+		{
+			Name:        "order",
+			Type:        pluginapi.ConfigFieldTypeEnum,
+			EnumValues:  []string{orderAscending, orderDescending},
+			Description: "Catalog sort direction. Defaults to asc.",
+		},
+		{
+			Name:        "pinned",
+			Type:        pluginapi.ConfigFieldTypeArray,
+			Description: "Model IDs kept at the top of the catalog, in the order listed here.",
+		},
+		{
+			Name:        "hidden",
+			Type:        pluginapi.ConfigFieldTypeArray,
+			Description: "Model IDs removed from catalog responses. Hidden models stay requestable.",
+		},
+	}
+}
+
+// interceptResponse curates model listings and leaves every other response
 // untouched. An empty Body means "unchanged", so anything uncertain returns an
 // empty response.
 func interceptResponse(raw []byte) ([]byte, error) {
@@ -96,21 +204,21 @@ func interceptResponse(raw []byte) ([]byte, error) {
 	if req.Model != "" || req.RequestedModel != "" || req.Stream {
 		return okEnvelope(pluginapi.ResponseInterceptResponse{})
 	}
-	sorted, changed := sortModelCatalog(req.Body)
+	curated, changed := curateModelCatalog(req.Body)
 	if !changed {
 		return okEnvelope(pluginapi.ResponseInterceptResponse{})
 	}
-	return okEnvelope(pluginapi.ResponseInterceptResponse{Body: sorted})
+	return okEnvelope(pluginapi.ResponseInterceptResponse{Body: curated})
 }
 
-// sortModelCatalog sorts the model array inside a catalog body. It handles the
-// shapes CPA emits:
+// curateModelCatalog hides, orders and pins the model array inside a catalog
+// body. It handles the shapes CPA emits:
 //
 //	OpenAI and Claude: {"object":"list","data":[{"id":...}]}
 //	Gemini:            {"models":[{"name":"models/..."}]}
 //
 // It reports whether the body changed. Any unexpected shape is left alone.
-func sortModelCatalog(body []byte) ([]byte, bool) {
+func curateModelCatalog(body []byte) ([]byte, bool) {
 	if len(body) == 0 {
 		return nil, false
 	}
@@ -134,28 +242,27 @@ func sortModelCatalog(body []byte) ([]byte, bool) {
 	if errUnmarshal := json.Unmarshal(root[key], &items); errUnmarshal != nil {
 		return nil, false
 	}
-	if len(items) < 2 {
+	if len(items) == 0 {
 		return nil, false
 	}
 
-	// Every entry must carry a sort key. Otherwise sorting would reorder the
-	// catalog on an empty string, so leave the body untouched instead.
+	// Every entry must carry a sort key. Otherwise ordering would compare on an
+	// empty string, so leave the body untouched instead.
 	for _, item := range items {
 		if modelSortKey(item) == "" {
 			return nil, false
 		}
 	}
 
-	if sort.SliceIsSorted(items, func(i, j int) bool {
-		return modelSortKey(items[i]) < modelSortKey(items[j])
-	}) {
+	curated := applyHidden(items)
+	curated = applyOrder(curated)
+	curated = applyPinned(curated)
+
+	if sameOrder(items, curated) {
 		return nil, false
 	}
-	sort.SliceStable(items, func(i, j int) bool {
-		return modelSortKey(items[i]) < modelSortKey(items[j])
-	})
 
-	encoded, errMarshal := json.Marshal(items)
+	encoded, errMarshal := json.Marshal(curated)
 	if errMarshal != nil {
 		return nil, false
 	}
@@ -165,6 +272,78 @@ func sortModelCatalog(body []byte) ([]byte, bool) {
 		return nil, false
 	}
 	return out, true
+}
+
+// applyHidden drops configured models from the catalog. Hidden models remain
+// routable: this only edits the listing, never the request path.
+func applyHidden(items []map[string]any) []map[string]any {
+	if len(config.Hidden) == 0 {
+		return items
+	}
+	hidden := make(map[string]struct{}, len(config.Hidden))
+	for _, id := range config.Hidden {
+		hidden[id] = struct{}{}
+	}
+	out := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		if _, skip := hidden[modelIdentity(item)]; skip {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func applyOrder(items []map[string]any) []map[string]any {
+	out := append([]map[string]any(nil), items...)
+	sort.SliceStable(out, func(i, j int) bool {
+		if config.Order == orderDescending {
+			return modelSortKey(out[i]) > modelSortKey(out[j])
+		}
+		return modelSortKey(out[i]) < modelSortKey(out[j])
+	})
+	return out
+}
+
+// applyPinned moves configured models to the front, in the order they are
+// listed in the configuration. Pinned IDs that are absent or hidden are
+// ignored rather than treated as an error.
+func applyPinned(items []map[string]any) []map[string]any {
+	if len(config.Pinned) == 0 {
+		return items
+	}
+	remaining := append([]map[string]any(nil), items...)
+	out := make([]map[string]any, 0, len(items))
+	for _, id := range config.Pinned {
+		for index, item := range remaining {
+			if item == nil || modelIdentity(item) != id {
+				continue
+			}
+			out = append(out, item)
+			remaining[index] = nil
+			break
+		}
+	}
+	for _, item := range remaining {
+		if item != nil {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+// sameOrder reports whether two catalogs hold the same entries in the same
+// order, so an already-curated body is not rewritten.
+func sameOrder(before, after []map[string]any) bool {
+	if len(before) != len(after) {
+		return false
+	}
+	for index := range before {
+		if modelSortKey(before[index]) != modelSortKey(after[index]) {
+			return false
+		}
+	}
+	return true
 }
 
 // modelSortKey returns the identifier the catalog is ordered by. The OpenAI and
@@ -181,6 +360,19 @@ func modelSortKey(model map[string]any) string {
 		return name
 	}
 	return ""
+}
+
+// modelIdentity returns the ID a user would write in the configuration. The
+// Gemini catalog reports "models/gemini-3-pro", so the bare ID is matched too
+// and users do not have to know which format a listing uses.
+func modelIdentity(model map[string]any) string {
+	key := modelSortKey(model)
+	if _, isOpenAI := model["id"]; !isOpenAI {
+		if trimmed := strings.TrimPrefix(key, "models/"); trimmed != "" {
+			return trimmed
+		}
+	}
+	return key
 }
 
 func okEnvelope(v any) ([]byte, error) {
