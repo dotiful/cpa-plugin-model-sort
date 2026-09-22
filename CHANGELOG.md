@@ -4,6 +4,25 @@ All notable changes to this project are documented here. Versions follow
 [semantic versioning](https://semver.org/spec/v2.0.0.html), and each release is
 published from the matching `v<version>` git tag.
 
+## 0.4.0 — 2026-09-22
+
+Fixes the Codex client catalog, which was never sorted.
+
+- **Entries are now keyed on `slug` as well as `id` and `name`.** CPA serves a
+  fifth listing shape from `GET /v1/models?client_version=...`, built by
+  `internal/client/codex/models`, whose entries carry `slug` instead of `id`.
+  The comparator only knew `id` and `name`, so every entry produced an empty
+  sort key, curation bailed out by design, and that catalog was returned in the
+  registry's map order — the exact problem this plugin exists to fix. `pinned`
+  and `hidden` had no effect there either.
+- **A `slug` is matched verbatim.** The `models/` prefix is stripped only for
+  the Gemini shape, so a slug that happens to start with `models/` is not
+  silently rewritten.
+
+Behaviour on the OpenAI, Claude, Gemini and Grok Shell listings is unchanged.
+This affects which fields are read, not which providers are supported: curation
+works on the emitted JSON, so every provider CPA can serve is covered.
+
 ## 0.3.0 — 2026-09-22
 
 Adds wildcard patterns to `pinned` and `hidden`.

@@ -35,10 +35,17 @@ Covered endpoints:
 | --- | --- | --- |
 | `GET /v1/models` | OpenAI | `id` |
 | `GET /v1/models` with `Anthropic-Version` or a `claude-cli` agent | Claude | `id` |
+| `GET /v1/models` with a `grok-shell` agent | Grok Shell | `id` |
+| `GET /v1/models?client_version=...` | Codex client | `slug` |
 | `GET /v1beta/models` | Gemini | `name` |
 
-The Gemini format keys on `name` rather than `id`, so an id-only comparator
-would silently leave that listing unsorted.
+This is a matter of response *format*, not of provider. The plugin curates the
+JSON that CPA has already produced, so every provider CPA can serve — OpenAI,
+Claude, Gemini, Codex, Qwen, iFlow, Grok and any other — is covered by whichever
+of these listings the client asks for.
+
+The Gemini format keys on `name` and the Codex client format on `slug`, so an
+id-only comparator would silently leave those listings unsorted.
 
 ## Install
 

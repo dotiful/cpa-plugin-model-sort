@@ -50,8 +50,12 @@ if the tests still compile.
 - **An empty `Body` in the response means "unchanged".** Any uncertain input
   (unparseable JSON, unknown shape, missing sort keys, fewer than two entries)
   must return an empty response rather than a guess.
-- **Sort on `id`, falling back to `name`.** The Gemini listing keys on `name`;
-  an id-only comparator leaves it unsorted while appearing to work.
+- **Sort on `id`, then `slug`, then `name`.** Each listing shape names that
+  field differently: the Gemini listing keys on `name` and the Codex client
+  listing (`GET /v1/models?client_version=...`) on `slug`. A comparator missing
+  any of them leaves that catalog unsorted while appearing to work, because an
+  empty sort key makes curation bail out by design. When CPA adds a listing
+  shape, check which field its entries carry before assuming it is covered.
 - **`hidden` must never affect routing.** It removes entries from catalog
   responses only; a hidden model stays fully requestable. That separation is the
   entire point of the setting versus `force-model-prefix`, and

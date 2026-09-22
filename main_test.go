@@ -533,3 +533,56 @@ func TestHiddenWildcardBeatsPinned(t *testing.T) {
 	}
 	assertOrder(t, sortKeys(t, out, "data"), []string{"claude"})
 }
+
+// The Codex client catalog keys entries on "slug" rather than "id", and CPA
+// serves it from GET /v1/models?client_version=... . Keying on "id" alone left
+// that listing in the registry's map order.
+func TestCodexClientCatalogSortsOnSlug(t *testing.T) {
+	withConfig(t, settings{Order: orderAscending})
+	body := []byte(`{"models":[{"slug":"z-model","display_name":"Z"},{"slug":"a-model","display_name":"A"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal("the Codex client catalog should have been sorted")
+	}
+	assertOrder(t, sortKeys(t, out, "models"), []string{"a-model", "z-model"})
+}
+
+// Slug entries must be matchable by pinned and hidden patterns too, otherwise
+// curation would silently apply to some listings but not others.
+func TestCodexClientCatalogHonoursPatterns(t *testing.T) {
+	withConfig(t, settings{
+		Order:  orderAscending,
+		Pinned: []string{"anthropic-*"},
+		Hidden: []string{"codex-*"},
+	})
+	body := []byte(`{"models":[{"slug":"codex-go"},{"slug":"zeta"},{"slug":"anthropic-opus"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal("patterns should have curated the Codex client catalog")
+	}
+	assertOrder(t, sortKeys(t, out, "models"), []string{"anthropic-opus", "zeta"})
+}
+
+// A slug never carries the Gemini "models/" prefix, so it must be matched
+// verbatim instead of having a prefix stripped from it.
+func TestSlugIdentityIsNotPrefixStripped(t *testing.T) {
+	model := map[string]any{"slug": "models/weird-name"}
+	if got := modelIdentity(model); got != "models/weird-name" {
+		t.Fatalf("modelIdentity = %q, want the slug unchanged", got)
+	}
+}
+
+// The Grok Shell listing uses the OpenAI envelope with "id", so it sorts
+// through the same path; this pins that expectation.
+func TestGrokShellCatalogSorts(t *testing.T) {
+	withConfig(t, settings{Order: orderAscending})
+	body := []byte(`{"object":"list","data":[{"id":"z","model":"z","name":"Z","api_backend":"x"},{"id":"a","model":"a","name":"A","api_backend":"x"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal("the Grok Shell catalog should have been sorted")
+	}
+	assertOrder(t, sortKeys(t, out, "data"), []string{"a", "z"})
+}

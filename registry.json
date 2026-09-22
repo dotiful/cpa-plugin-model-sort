@@ -4,7 +4,7 @@
     {
       "id": "model-sort",
       "name": "Model Sort",
-      "description": "Returns the model catalog in a stable order instead of a new random order on every restart, and can pin models to the top or hide them from catalog responses using exact IDs or wildcard patterns. Hidden models stay fully routable. Covers the OpenAI, Claude and Gemini listings.",
+      "description": "Returns the model catalog in a stable order instead of a new random order on every restart, and can pin models to the top or hide them from catalog responses using exact IDs or wildcard patterns. Hidden models stay fully routable. Covers the OpenAI, Claude, Gemini, Codex client and Grok Shell listings.",
       "author": "dotiful",
       "repository": "https://github.com/dotiful/cpa-plugin-model-sort",
       "logo": "https://raw.githubusercontent.com/dotiful/cpa-plugin-model-sort/main/logo.png",

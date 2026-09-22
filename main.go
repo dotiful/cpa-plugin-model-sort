@@ -214,8 +214,9 @@ func interceptResponse(raw []byte) ([]byte, error) {
 // curateModelCatalog hides, orders and pins the model array inside a catalog
 // body. It handles the shapes CPA emits:
 //
-//	OpenAI and Claude: {"object":"list","data":[{"id":...}]}
-//	Gemini:            {"models":[{"name":"models/..."}]}
+//	OpenAI, Claude, Grok: {"object":"list","data":[{"id":...}]}
+//	Gemini:               {"models":[{"name":"models/..."}]}
+//	Codex client:         {"models":[{"slug":...}]}
 //
 // It reports whether the body changed. Any unexpected shape is left alone.
 func curateModelCatalog(body []byte) ([]byte, bool) {
@@ -393,30 +394,36 @@ func sameOrder(before, after []map[string]any) bool {
 	return true
 }
 
-// modelSortKey returns the identifier the catalog is ordered by. The OpenAI and
-// Claude formats key on "id" while the Gemini format keys on "name", so an
-// id-only comparator would silently leave the Gemini listing unsorted.
+// modelSortKey returns the identifier the catalog is ordered by. Each listing
+// format names that field differently, so an id-only comparator would silently
+// leave the Gemini and Codex-client listings unsorted:
+//
+//	OpenAI, Claude, Grok: "id"
+//	Codex client:         "slug"
+//	Gemini:               "name"
 func modelSortKey(model map[string]any) string {
 	if model == nil {
 		return ""
 	}
-	if id, ok := model["id"].(string); ok && id != "" {
-		return id
-	}
-	if name, ok := model["name"].(string); ok {
-		return name
+	for _, field := range []string{"id", "slug", "name"} {
+		if value, ok := model[field].(string); ok && value != "" {
+			return value
+		}
 	}
 	return ""
 }
 
 // modelIdentity returns the ID a user would write in the configuration. The
 // Gemini catalog reports "models/gemini-3-pro", so the bare ID is matched too
-// and users do not have to know which format a listing uses.
+// and users do not have to know which format a listing uses. The prefix is only
+// stripped for the Gemini shape, where the sort key comes from "name".
 func modelIdentity(model map[string]any) string {
 	key := modelSortKey(model)
-	if _, isOpenAI := model["id"]; !isOpenAI {
-		if trimmed := strings.TrimPrefix(key, "models/"); trimmed != "" {
-			return trimmed
+	if _, keyed := model["id"]; !keyed {
+		if _, slugged := model["slug"]; !slugged {
+			if trimmed := strings.TrimPrefix(key, "models/"); trimmed != "" {
+				return trimmed
+			}
 		}
 	}
 	return key
