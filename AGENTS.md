@@ -58,6 +58,10 @@ if the tests still compile.
   `TestHiddenModelStillCompletes` locks it down.
 - **Curate in the order hide, sort, pin.** Pinning before sorting would let the
   sort undo the pins, and hiding last would waste work on dropped entries.
+- **Keep `matchWildcard` byte-for-byte equivalent to CPA's.** It is copied from
+  `sdk/cliproxy/service_models.go`, which backs `oauth-excluded-models`. If the
+  two diverge, the same pattern means different things in the host config and in
+  this plugin, which is worse than having no wildcards at all.
 - **Every advertised config field must be read by the plugin.** A field in
   `ConfigFields` that `applyConfig` ignores shows up in the management panel as
   a setting that silently does nothing; `TestConfigFieldsMatchSettings` keeps

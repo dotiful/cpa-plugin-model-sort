@@ -84,8 +84,8 @@ require a restart.
 | Setting | Type | Default | Effect |
 | --- | --- | --- | --- |
 | `order` | `asc` \| `desc` | `asc` | Sort direction. |
-| `pinned` | list of model IDs | empty | Kept at the top, in the order listed. |
-| `hidden` | list of model IDs | empty | Removed from catalog responses. |
+| `pinned` | list of patterns | empty | Kept at the top, in the order listed. |
+| `hidden` | list of patterns | empty | Removed from catalog responses. |
 
 ```yaml
     model-sort:
@@ -96,14 +96,25 @@ require a restart.
         - anthropic-claude-sonnet-4-6
       hidden:
         - legacy-model
+        - codex-*
 ```
 
 `hidden` only edits the listing: hidden models stay fully requestable, which is
 the catalog-only filtering asked for in
+[issue #5995](https://github.com/router-for-me/CLIProxyAPI/issues/5995) and
 [issue #5349](https://github.com/router-for-me/CLIProxyAPI/issues/5349).
-`force-model-prefix: true` hides duplicates too, but it also changes routing.
+`oauth-excluded-models` removes a model from the listing *and* from routing, and
+`force-model-prefix: true` hides duplicates but also changes routing — neither
+keeps a curated catalog with every model still callable.
 
-Pinned and hidden IDs are matched as written in the catalog. For the Gemini
+`pinned` and `hidden` accept `*` wildcards: `codex-*` matches a whole channel,
+`*-preview` every preview model, and `*` the entire catalog. Matching follows
+CPA's own matcher (the one behind `oauth-excluded-models`), so a pattern means
+the same thing in either place. A pattern without `*` is an exact comparison.
+A pinned pattern pins every model it matches, keeping their sorted order, and a
+model matched by both `pinned` and `hidden` stays hidden.
+
+Patterns are matched against the ID as written in the catalog. For the Gemini
 listing, which reports `models/<id>`, the bare ID matches as well.
 
 Under a hardened systemd unit (`ProtectSystem=strict`), point `dir` at a path

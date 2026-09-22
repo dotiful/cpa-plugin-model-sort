@@ -4,6 +4,26 @@ All notable changes to this project are documented here. Versions follow
 [semantic versioning](https://semver.org/spec/v2.0.0.html), and each release is
 published from the matching `v<version>` git tag.
 
+## 0.3.0 — 2026-09-22
+
+Adds wildcard patterns to `pinned` and `hidden`.
+
+- **`pinned` and `hidden` accept `*` wildcards.** Exact IDs alone could not
+  express "hide this whole channel", which is the headline request in
+  [issue #5995](https://github.com/router-for-me/CLIProxyAPI/issues/5995):
+  `oauth-excluded-models` with `"*"` empties the listing *and* breaks routing,
+  and the issue records no workaround that keeps both. `hidden: ["codex-*"]`
+  now does exactly that, and `"*"` clears the catalog while every model stays
+  callable.
+- **Matching mirrors CPA's own matcher** in `sdk/cliproxy/service_models.go`,
+  the one behind `oauth-excluded-models`, down to how middle segments are
+  consumed in order. A pattern therefore means the same thing whether it is
+  written for the host or for this plugin. A pattern without `*` remains an
+  exact comparison, so existing configurations are unaffected.
+- **A pinned pattern pins every model it matches**, keeping their sorted order
+  relative to each other, and a model matched by several patterns is pinned
+  once. Hiding still wins over pinning.
+
 ## 0.2.0 — 2026-09-22
 
 Adds the first configuration surface, and restores the FreeBSD build.

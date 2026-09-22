@@ -420,3 +420,116 @@ func TestUnknownMethodReturnsErrorEnvelope(t *testing.T) {
 		t.Fatalf("expected unknown_method error envelope, got %s", out)
 	}
 }
+
+// matchWildcard mirrors CPA's matcher in sdk/cliproxy/service_models.go. A
+// divergence here would make a pattern mean one thing in oauth-excluded-models
+// and another in this plugin.
+func TestMatchWildcard(t *testing.T) {
+	cases := []struct {
+		pattern string
+		value   string
+		want    bool
+	}{
+		{"", "anything", false},          // an empty pattern never matches
+		{"*", "anything", true},          // the whole-channel case from issue #5995
+		{"exact", "exact", true},         // no wildcard is an exact comparison
+		{"exact", "exact-suffix", false}, // and must not match a prefix
+		{"codex-*", "codex-go/gpt", true},
+		{"codex-*", "claude-opus", false},
+		{"*-preview", "gemini-preview", true},
+		{"*-preview", "gemini-stable", false},
+		{"claude-*-4-*", "claude-opus-4-6", true},
+		{"claude-*-4-*", "claude-opus-3-6", false},
+		{"a*b*c", "axxbyyc", true},
+		{"a*b*c", "acb", false}, // middle segments must appear in order
+	}
+	for _, tc := range cases {
+		if got := matchWildcard(tc.pattern, tc.value); got != tc.want {
+			t.Fatalf("matchWildcard(%q, %q) = %v, want %v", tc.pattern, tc.value, got, tc.want)
+		}
+	}
+}
+
+// The headline case of issue #5995: hide a whole channel from the listing.
+func TestHiddenWildcardRemovesMatchingModels(t *testing.T) {
+	withConfig(t, settings{Order: orderAscending, Hidden: []string{"codex-*"}})
+	body := []byte(`{"object":"list","data":[` +
+		`{"id":"claude-opus"},{"id":"codex-go"},{"id":"codex-rust"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal("wildcard should have hidden the codex models")
+	}
+	assertOrder(t, sortKeys(t, out, "data"), []string{"claude-opus"})
+}
+
+func TestHiddenWildcardCanEmptyTheCatalog(t *testing.T) {
+	withConfig(t, settings{Order: orderAscending, Hidden: []string{"*"}})
+	body := []byte(`{"object":"list","data":[{"id":"a"},{"id":"b"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal(`"*" should have hidden every model`)
+	}
+	if got := sortKeys(t, out, "data"); len(got) != 0 {
+		t.Fatalf("catalog = %v, want empty", got)
+	}
+}
+
+// Gemini entries are reported as "models/<id>", and a wildcard is written
+// against the bare ID just like an exact entry is.
+func TestHiddenWildcardMatchesGeminiBareID(t *testing.T) {
+	withConfig(t, settings{Order: orderAscending, Hidden: []string{"gemini-*-preview"}})
+	body := []byte(`{"models":[{"name":"models/gemini-3-preview"},{"name":"models/gemini-3-pro"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal("wildcard should have hidden the preview model")
+	}
+	assertOrder(t, sortKeys(t, out, "models"), []string{"models/gemini-3-pro"})
+}
+
+// A wildcard pins the whole group it matches, and the group keeps its sorted
+// order rather than collapsing to a single entry.
+func TestPinnedWildcardPinsEveryMatchInSortedOrder(t *testing.T) {
+	withConfig(t, settings{Order: orderAscending, Pinned: []string{"anthropic-*"}})
+	body := []byte(`{"object":"list","data":[` +
+		`{"id":"zeta"},{"id":"anthropic-opus"},{"id":"alpha"},{"id":"anthropic-haiku"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal("wildcard should have pinned the anthropic models")
+	}
+	assertOrder(t, sortKeys(t, out, "data"),
+		[]string{"anthropic-haiku", "anthropic-opus", "alpha", "zeta"})
+}
+
+// Patterns are applied in configuration order, and a model matched by two
+// patterns must be pinned once rather than duplicated.
+func TestPinnedPatternsDoNotDuplicateModels(t *testing.T) {
+	withConfig(t, settings{Order: orderAscending, Pinned: []string{"z-*", "z-one"}})
+	body := []byte(`{"object":"list","data":[{"id":"z-one"},{"id":"a"},{"id":"z-two"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal("patterns should have reordered the catalog")
+	}
+	// "z-one" is matched by both patterns but appears exactly once.
+	assertOrder(t, sortKeys(t, out, "data"), []string{"z-one", "z-two", "a"})
+}
+
+// Hiding wins over pinning, so a model matched by both never reappears.
+func TestHiddenWildcardBeatsPinned(t *testing.T) {
+	withConfig(t, settings{
+		Order:  orderAscending,
+		Pinned: []string{"codex-*"},
+		Hidden: []string{"codex-*"},
+	})
+	body := []byte(`{"object":"list","data":[{"id":"codex-go"},{"id":"claude"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal("the hidden model should have been removed")
+	}
+	assertOrder(t, sortKeys(t, out, "data"), []string{"claude"})
+}

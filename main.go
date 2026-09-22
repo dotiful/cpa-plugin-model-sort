@@ -179,12 +179,12 @@ func configFields() []pluginapi.ConfigField {
 		{
 			Name:        "pinned",
 			Type:        pluginapi.ConfigFieldTypeArray,
-			Description: "Model IDs kept at the top of the catalog, in the order listed here.",
+			Description: "Model IDs kept at the top of the catalog, in the order listed here. Supports * wildcards.",
 		},
 		{
 			Name:        "hidden",
 			Type:        pluginapi.ConfigFieldTypeArray,
-			Description: "Model IDs removed from catalog responses. Hidden models stay requestable.",
+			Description: "Model IDs removed from catalog responses. Supports * wildcards. Hidden models stay requestable.",
 		},
 	}
 }
@@ -280,18 +280,65 @@ func applyHidden(items []map[string]any) []map[string]any {
 	if len(config.Hidden) == 0 {
 		return items
 	}
-	hidden := make(map[string]struct{}, len(config.Hidden))
-	for _, id := range config.Hidden {
-		hidden[id] = struct{}{}
-	}
 	out := make([]map[string]any, 0, len(items))
 	for _, item := range items {
-		if _, skip := hidden[modelIdentity(item)]; skip {
+		if matchesAny(config.Hidden, modelIdentity(item)) {
 			continue
 		}
 		out = append(out, item)
 	}
 	return out
+}
+
+// matchesAny reports whether a model ID matches any of the configured patterns.
+func matchesAny(patterns []string, id string) bool {
+	for _, pattern := range patterns {
+		if matchWildcard(pattern, id) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchWildcard matches a model ID against a pattern where "*" stands for any
+// run of characters. The semantics deliberately mirror CPA's own matcher in
+// sdk/cliproxy/service_models.go, which backs oauth-excluded-models, so a
+// pattern behaves the same whether it is written for the host or for this
+// plugin. A pattern without "*" is an exact comparison.
+func matchWildcard(pattern, value string) bool {
+	if pattern == "" {
+		return false
+	}
+	if !strings.Contains(pattern, "*") {
+		return pattern == value
+	}
+
+	parts := strings.Split(pattern, "*")
+	if prefix := parts[0]; prefix != "" {
+		if !strings.HasPrefix(value, prefix) {
+			return false
+		}
+		value = value[len(prefix):]
+	}
+	if suffix := parts[len(parts)-1]; suffix != "" {
+		if !strings.HasSuffix(value, suffix) {
+			return false
+		}
+		value = value[:len(value)-len(suffix)]
+	}
+	// Middle segments must appear in order, each after the previous one.
+	for index := 1; index < len(parts)-1; index++ {
+		segment := parts[index]
+		if segment == "" {
+			continue
+		}
+		at := strings.Index(value, segment)
+		if at < 0 {
+			return false
+		}
+		value = value[at+len(segment):]
+	}
+	return true
 }
 
 func applyOrder(items []map[string]any) []map[string]any {
@@ -306,22 +353,22 @@ func applyOrder(items []map[string]any) []map[string]any {
 }
 
 // applyPinned moves configured models to the front, in the order they are
-// listed in the configuration. Pinned IDs that are absent or hidden are
-// ignored rather than treated as an error.
+// listed in the configuration. A pattern pins every model it matches, keeping
+// their relative catalog order. Patterns that match nothing, and IDs that are
+// absent or hidden, are ignored rather than treated as an error.
 func applyPinned(items []map[string]any) []map[string]any {
 	if len(config.Pinned) == 0 {
 		return items
 	}
 	remaining := append([]map[string]any(nil), items...)
 	out := make([]map[string]any, 0, len(items))
-	for _, id := range config.Pinned {
+	for _, pattern := range config.Pinned {
 		for index, item := range remaining {
-			if item == nil || modelIdentity(item) != id {
+			if item == nil || !matchWildcard(pattern, modelIdentity(item)) {
 				continue
 			}
 			out = append(out, item)
 			remaining[index] = nil
-			break
 		}
 	}
 	for _, item := range remaining {
