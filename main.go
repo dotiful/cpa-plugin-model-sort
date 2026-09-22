@@ -159,7 +159,7 @@ func pluginRegistration() registration {
 			Version:          pluginVersion,
 			Author:           "dotiful",
 			GitHubRepository: "https://github.com/dotiful/cpa-plugin-model-sort",
-			Logo:             "https://raw.githubusercontent.com/dotiful/cpa-plugin-model-sort/main/logo.svg",
+			Logo:             "https://raw.githubusercontent.com/dotiful/cpa-plugin-model-sort/main/logo.png",
 			ConfigFields:     configFields(),
 		},
 		Capabilities: registrationCapability{ResponseInterceptor: true},

@@ -7,7 +7,7 @@
       "description": "Returns the model catalog in a stable order instead of a new random order on every restart, and can pin models to the top or hide them from catalog responses without affecting routing. Covers the OpenAI, Claude and Gemini listings.",
       "author": "dotiful",
       "repository": "https://github.com/dotiful/cpa-plugin-model-sort",
-      "logo": "https://raw.githubusercontent.com/dotiful/cpa-plugin-model-sort/main/logo.svg",
+      "logo": "https://raw.githubusercontent.com/dotiful/cpa-plugin-model-sort/main/logo.png",
       "homepage": "https://github.com/dotiful/cpa-plugin-model-sort",
       "license": "MIT",
       "tags": ["Interceptor", "Compatibility"]
