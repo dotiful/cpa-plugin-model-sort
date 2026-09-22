@@ -1,7 +1,8 @@
 # Model Sort
 
-A CLIProxyAPI plugin that returns the model catalog in a stable order instead of
-a different random order on every restart, and lets you pin or hide entries.
+A [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) plugin that returns
+the model catalog in a stable order instead of a different random order on every
+restart, and lets you pin or hide entries.
 
 ## The problem
 
@@ -11,17 +12,22 @@ process, which makes the symptom easy to miss: restart the service and every
 client's model picker is reshuffled, bookmarks and muscle memory stop matching,
 and diffing two catalog dumps produces noise instead of signal.
 
-Upstream declined to sort the listing — issue #3081 was converted to
+Upstream declined to sort the listing —
+[issue #3081](https://github.com/router-for-me/CLIProxyAPI/issues/3081) was
+converted to
 [discussion #3888](https://github.com/router-for-me/CLIProxyAPI/discussions/3888)
 and closed — and there is no `model-list-sort` configuration option.
 
 ## What it does
 
 The plugin curates model listings on their way out and leaves everything else
-untouched. Model listings pass through the response interceptor chain just like
-completions do, so no forked binary is required: `WriteModelListResponse`
-(`sdk/api/handlers/handlers_interceptors.go`) invokes the chain, and
-`internal/api/server_models_interceptor_test.go` covers it for all three formats.
+untouched. Model listings pass through the
+[response interceptor](https://help.router-for.me/plugin/response-interceptor)
+chain just like completions do, so no forked binary is required:
+[`WriteModelListResponse`](https://github.com/router-for-me/CLIProxyAPI/blob/main/sdk/api/handlers/handlers_interceptors.go)
+invokes the chain, and
+[`server_models_interceptor_test.go`](https://github.com/router-for-me/CLIProxyAPI/blob/main/internal/api/server_models_interceptor_test.go)
+covers it for all three formats.
 
 Covered endpoints:
 
@@ -39,7 +45,8 @@ would silently leave that listing unsorted.
 ### From the plugin store
 
 Install `model-sort` from the CLIProxyAPI Management Center plugin store, then
-enable it in `config.yaml` as shown below.
+enable it in `config.yaml` as shown below. The store registry lives in
+[CLIProxyAPI-Plugins-Store](https://github.com/router-for-me/CLIProxyAPI-Plugins-Store).
 
 ### Manual
 
@@ -107,7 +114,7 @@ inside `StateDirectory`; `/usr/local` is read-only there.
 The service log must show `plugin registered`, not merely `plugin loaded`:
 
 ```
-pluginhost: plugin registered plugin_id=model-sort plugin_name=model-sort version=0.1.0
+pluginhost: plugin registered plugin_id=model-sort plugin_name=model-sort version=0.2.0
 ```
 
 Then confirm the catalog is ordered:
@@ -121,9 +128,12 @@ Restart the service a few times and re-run it; the answer must stay `True`.
 
 ## Requirements
 
-- CLIProxyAPI built with plugin support. Any Management API response carries
-  `X-CPA-SUPPORT-PLUGIN: 1` when the running binary supports plugins; `0` means
-  the binary was built without cgo and will ignore every `.so`.
+- [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) built with plugin
+  support. Any Management API response carries `X-CPA-SUPPORT-PLUGIN: 1` when the
+  running binary supports plugins; `0` means the binary was built without cgo and
+  will ignore every `.so`. The official
+  [releases](https://github.com/router-for-me/CLIProxyAPI/releases) marked
+  `no-plugin` are the ones to avoid.
 - Verified against CLIProxyAPI 7.3.12.
 
 Releases cover the same platforms CLIProxyAPI itself publishes a plugin-capable

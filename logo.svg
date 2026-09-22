@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Model Sort">
+  <title>Model Sort</title>
+  <!-- Three bars ascending in length: the catalog settles into a stable order. -->
+  <g fill="#4f8ff7">
+    <rect x="8" y="16" width="20" height="7" rx="3.5"/>
+    <rect x="8" y="28.5" width="30" height="7" rx="3.5"/>
+    <rect x="8" y="41" width="40" height="7" rx="3.5"/>
+  </g>
+  <!-- Downward arrow marking the sort direction. -->
+  <g fill="none" stroke="#1f2a3d" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M54 15 V45"/>
+    <path d="M47.5 38.5 L54 45 L60.5 38.5"/>
+  </g>
+</svg>
