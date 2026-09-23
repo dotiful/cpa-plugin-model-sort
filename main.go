@@ -13,6 +13,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -263,16 +264,31 @@ func curateModelCatalog(body []byte) ([]byte, bool) {
 		return nil, false
 	}
 
-	encoded, errMarshal := json.Marshal(curated)
+	encoded, errMarshal := marshalNoEscape(curated)
 	if errMarshal != nil {
 		return nil, false
 	}
 	root[key] = encoded
-	out, errMarshal := json.Marshal(root)
+	out, errMarshal := marshalNoEscape(root)
 	if errMarshal != nil {
 		return nil, false
 	}
 	return out, true
+}
+
+// marshalNoEscape serializes without HTML escaping, matching how the host
+// encodes catalogs (codexmodels.MarshalCompact). Plain json.Marshal would
+// expand < > & inside prompt text into \u003c style sequences, inflating the
+// Codex client catalog that the host deliberately keeps compact to stay under
+// the client's 1MiB cap.
+func marshalNoEscape(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	if errEncode := encoder.Encode(v); errEncode != nil {
+		return nil, errEncode
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
 
 // applyHidden drops configured models from the catalog. Hidden models remain

@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Versions follow
 [semantic versioning](https://semver.org/spec/v2.0.0.html), and each release is
 published from the matching `v<version>` git tag.
 
+## 0.4.1 — 2026-09-23
+
+Keeps the Codex client catalog under the client's size cap.
+
+- **Curated bodies are re-encoded with HTML escaping disabled.** CPA 7.3.15
+  added `codexmodels.MarshalCompact`, which serializes the Codex client catalog
+  with `SetEscapeHTML(false)` because Codex 0.156+ rejects a `model_catalog_url`
+  body over 1 MiB and silently falls back to its bundled catalog. The plugin
+  re-serialized that body with plain `json.Marshal`, whose default escaping
+  expands every `<`, `>` and `&` in the instruction text into `\uXXXX`
+  sequences — re-inflating a body the host had just compacted. On a live
+  gateway this added 4,600 bytes across 920 escaped sequences. The plugin now
+  matches the host encoder exactly.
+
+No behaviour change on the OpenAI, Claude, Gemini and Grok Shell listings, and
+no change to ordering, `pinned` or `hidden`.
+
 ## 0.4.0 — 2026-09-22
 
 Fixes the Codex client catalog, which was never sorted.

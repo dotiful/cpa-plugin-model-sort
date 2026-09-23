@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
@@ -572,6 +573,44 @@ func TestSlugIdentityIsNotPrefixStripped(t *testing.T) {
 	if got := modelIdentity(model); got != "models/weird-name" {
 		t.Fatalf("modelIdentity = %q, want the slug unchanged", got)
 	}
+}
+
+// CPA serves the Codex client catalog with HTML escaping disabled so the body
+// stays under the client's 1MiB cap (codexmodels.MarshalCompact). Re-encoding
+// with plain json.Marshal would expand every < > & in the prompt text into
+// \u003c style sequences, inflating a catalog the host deliberately compacted
+// and pushing it back over the limit.
+func TestCuratedCatalogKeepsHTMLUnescaped(t *testing.T) {
+	withConfig(t, settings{Order: orderAscending})
+	// Quotes are escaped by any JSON encoder, so keep the fixture to the
+	// characters that only SetEscapeHTML(false) leaves alone.
+	instructions := `Use <tool> & apply_patch when a > b`
+	body := []byte(`{"models":[{"slug":"z-model","base_instructions":` +
+		mustJSONString(t, instructions) + `},{"slug":"a-model"}]}`)
+
+	out, changed := curateModelCatalog(body)
+	if !changed {
+		t.Fatal("the catalog should have been sorted")
+	}
+	for _, seq := range []string{`\u003c`, `\u003e`, `\u0026`} {
+		if bytes.Contains(out, []byte(seq)) {
+			t.Fatalf("curated body contains escaped sequence %s; "+
+				"HTML escaping must stay disabled to match the host encoder", seq)
+		}
+	}
+	// The text must survive verbatim, not merely stay unescaped.
+	if !bytes.Contains(out, []byte(instructions)) {
+		t.Fatalf("curated body lost the original instruction text")
+	}
+}
+
+func mustJSONString(t *testing.T, s string) string {
+	t.Helper()
+	raw, err := json.Marshal(s)
+	if err != nil {
+		t.Fatalf("encode string: %v", err)
+	}
+	return string(raw)
 }
 
 // The Grok Shell listing uses the OpenAI envelope with "id", so it sorts
