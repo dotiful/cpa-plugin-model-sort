@@ -1,0 +1,101 @@
+name: Bug report
+description: Something the plugin does wrong, or fails to do
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most reports come down to a version mismatch or an unsorted listing
+        shape, so the version fields below are not busywork — without them a
+        report usually cannot be acted on.
+
+        Please do **not** report security issues here. See
+        [SECURITY.md](https://github.com/dotiful/cpa-plugin-model-sort/blob/main/SECURITY.md).
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: "From the gateway log line: pluginhost: plugin registered ... version="
+      placeholder: "0.4.1"
+    validations:
+      required: true
+
+  - type: input
+    id: cpa-version
+    attributes:
+      label: CLIProxyAPI version
+      description: "First line of: cli-proxy-api --version"
+      placeholder: "7.3.15"
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: OS and architecture
+      placeholder: "Debian 13, linux/amd64"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: endpoint
+    attributes:
+      label: Which listing is affected?
+      description: Each shape is served differently, so this narrows it down immediately.
+      options:
+        - "GET /v1/models (OpenAI)"
+        - "GET /v1/models with Anthropic-Version or claude-cli agent (Claude)"
+        - "GET /v1/models with a grok-shell agent (Grok Shell)"
+        - "GET /v1/models?client_version=... (Codex client)"
+        - "GET /v1beta/models (Gemini)"
+        - "Not a listing / not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Plugin configuration
+      description: Your plugins.configs.model-sort block. Redact anything sensitive.
+      render: yaml
+      placeholder: |
+        plugins:
+          configs:
+            model-sort:
+              enabled: true
+              order: asc
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: What you expected, and what happened
+      description: |
+        Include the actual response body. Piping curl output through
+        `head -c 2000` is ideal — a description of the order is much harder
+        to work with than the order itself.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Gateway log lines
+      description: |
+        Run: journalctl -u cli-proxy-api --since "10 min ago" | grep -i plugin
+
+        A `plugin loaded` line without a following `plugin registered` means the
+        plugin never registered — include the surrounding warning if so.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I am running the latest released version of the plugin
+          required: true
+        - label: I confirmed the gateway logs plugin registered, not just plugin loaded
+          required: false

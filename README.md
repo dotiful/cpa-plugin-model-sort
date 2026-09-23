@@ -1,5 +1,10 @@
 # Model Sort
 
+[![Build](https://github.com/dotiful/cpa-plugin-model-sort/actions/workflows/build.yml/badge.svg)](https://github.com/dotiful/cpa-plugin-model-sort/actions/workflows/build.yml)
+[![Latest release](https://img.shields.io/github/v/release/dotiful/cpa-plugin-model-sort?sort=semver)](https://github.com/dotiful/cpa-plugin-model-sort/releases/latest)
+[![Go version](https://img.shields.io/github/go-mod/go-version/dotiful/cpa-plugin-model-sort)](go.mod)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) plugin that returns
 the model catalog in a stable order instead of a different random order on every
 restart, and lets you pin or hide entries.
@@ -132,7 +137,7 @@ inside `StateDirectory`; `/usr/local` is read-only there.
 The service log must show `plugin registered`, not merely `plugin loaded`:
 
 ```
-pluginhost: plugin registered plugin_id=model-sort plugin_name=model-sort version=0.3.0
+pluginhost: plugin registered plugin_id=model-sort plugin_name=model-sort version=0.4.1
 ```
 
 Then confirm the catalog is ordered:
@@ -152,7 +157,9 @@ Restart the service a few times and re-run it; the answer must stay `True`.
   will ignore every `.so`. The official
   [releases](https://github.com/router-for-me/CLIProxyAPI/releases) marked
   `no-plugin` are the ones to avoid.
-- Verified against CLIProxyAPI 7.3.12.
+- Verified against CLIProxyAPI 7.3.15. The plugin is built against the SDK
+  version pinned in [`go.mod`](go.mod); the host rejects a plugin built against a
+  *newer* SDK than itself, so an older pin stays compatible.
 
 Releases cover the same platforms CLIProxyAPI itself publishes a plugin-capable
 build for: linux, darwin and windows on amd64 and arm64, plus freebsd/amd64.
@@ -170,9 +177,26 @@ dynamically linked: CPA loads plugins with `dlopen`, which a static binary
 cannot do. Build against the same libc as the target — a musl/Alpine build will
 not load on a glibc host.
 
+The [`registry.json`](registry.json) in this repository is a reference copy of
+the store entry, kept here so changes can be reviewed alongside the code. The
+authoritative entry lives in
+[CLIProxyAPI-Plugins-Store](https://github.com/router-for-me/CLIProxyAPI-Plugins-Store);
+editing the copy here does not change what the store serves.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md).
+
+## Contributing
+
+Bug reports and pull requests are welcome — see
+[CONTRIBUTING.md](CONTRIBUTING.md) for the toolchain constraints (CGO, no static
+linking) and [AGENTS.md](AGENTS.md) for the architecture and the invariants any
+change must preserve. Participation is covered by our
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+Please report security issues privately rather than in a public issue; see
+[SECURITY.md](SECURITY.md).
 
 ## License
 

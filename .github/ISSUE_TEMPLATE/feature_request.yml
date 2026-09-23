@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest a capability for the plugin
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This plugin deliberately does one thing — curate model listings on their
+        way out. Requests that require touching routing, completions or
+        credentials are out of scope by design, and are usually better raised
+        against [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)
+        itself.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you hitting?
+      description: |
+        Describe the situation, not the solution. The most useful requests
+        explain what the catalog looks like now and why that is a problem for
+        your clients.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+      description: If you have a configuration shape in mind, sketch it.
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What have you already tried?
+      description: |
+        `order`, `pinned` and `hidden` cover more than they first appear —
+        both `pinned` and `hidden` accept `*` wildcards. Upstream options such
+        as `oauth-excluded-models` or `force-model-prefix` may also fit.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This affects model listings, not routing or completions
+          required: true

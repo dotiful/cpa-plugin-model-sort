@@ -1,0 +1,30 @@
+version: 2
+updates:
+  # The Go toolchain patch version in go.mod is deliberately pinned: CI installs
+  # it via go-version-file, and govulncheck fails on stdlib advisories present
+  # in earlier patches. Dependabot keeps that pin moving forward instead of
+  # letting it rot until the next release breaks CI.
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+
+  # Pinned action SHAs never update themselves, and a stale cross-compile action
+  # is how the FreeBSD sysroot job silently starts 404ing.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/dotiful/cpa-plugin-model-sort/security/advisories/new
+    about: Report privately through a GitHub security advisory, never in a public issue.
+  - name: CLIProxyAPI itself
+    url: https://github.com/router-for-me/CLIProxyAPI/issues
+    about: Gateway behaviour unrelated to model listings belongs upstream.
+  - name: Plugin store listing
+    url: https://github.com/router-for-me/CLIProxyAPI-Plugins-Store
+    about: Problems installing through the plugin store, or with the registry entry.
