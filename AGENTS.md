@@ -117,6 +117,29 @@ Add the `CHANGELOG.md` section before tagging. The release job extracts the
 when the section is missing, so a release cannot ship undocumented. Write entries
 as what changed and why it mattered, not as a restatement of the commit subject.
 
+### Before tagging: reconcile the SDK pin
+
+The `github.com/router-for-me/CLIProxyAPI/v7` version in `go.mod` is the plugin
+SDK this library is compiled against. The host **rejects a plugin built against a
+newer SDK than itself** and accepts an older one, so a lagging pin is safe to run
+but means new host behaviour is invisible to the plugin at compile time — exactly
+how the 7.3.15 Codex encoder change became a silent runtime regression rather
+than a build error.
+
+Therefore, as part of cutting any release:
+
+1. Compare the pin against the gateway version the release will be verified on.
+2. If the gateway is newer, read the intervening diff for changes to the response
+   path (encoders, listing builders, interceptor invocation) before deciding.
+3. Either bump the pin in the same release, or record in the changelog entry that
+   the pin lags deliberately and why.
+
+Do not bump the pin outside a release: it changes the compiled artifact, so it
+needs the full platform matrix and live verification like any other change.
+
+**Currently pinned at `v7.3.12` while the reference gateway runs `7.3.15`.** Raise
+it to a 7.3.15-or-later SDK in the next release and drop this paragraph.
+
 The platform matrix mirrors the plugin-capable builds CLIProxyAPI itself ships:
 linux, darwin and windows on amd64 and arm64, plus freebsd/amd64. Native runners
 cover everything except windows/arm64 (`go-cross/cgo-actions`) and FreeBSD,

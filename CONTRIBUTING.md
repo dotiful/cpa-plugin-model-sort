@@ -98,6 +98,12 @@ Releases are cut from `CHANGELOG.md` — CI extracts the section matching the ta
 and fails when it is missing, so an undocumented release cannot ship. Add your
 entry under a new version heading, or to the existing unreleased one.
 
+Before tagging, reconcile the CLIProxyAPI SDK pin in `go.mod` against the gateway
+version the release is verified on — see the release section of
+[`AGENTS.md`](AGENTS.md). An older pin runs fine, but hides new host behaviour at
+compile time, which is how a host encoder change once reached production as a
+silent regression instead of a build failure.
+
 ## Reporting security issues
 
 Do not open a public issue. See [`SECURITY.md`](SECURITY.md).
