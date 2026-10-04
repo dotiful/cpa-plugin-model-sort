@@ -4,6 +4,28 @@ All notable changes to this project are documented here. Versions follow
 [semantic versioning](https://semver.org/spec/v2.0.0.html), and each release is
 published from the matching `v<version>` git tag.
 
+## 0.5.0 — 2026-10-04
+
+Rebuilds against the CLIProxyAPI v8 plugin SDK.
+
+- **The SDK pin moves from `CLIProxyAPI/v7` v7.3.20 to `CLIProxyAPI/v8`
+  v8.0.13.** The host accepts a plugin built against an older SDK, so the v7
+  artifact kept loading and sorting correctly on a v8 gateway — but a lagging pin
+  also keeps new host behaviour invisible at compile time, which is precisely how
+  the 7.3.15 Codex encoder change reached production as a silent output
+  regression instead of a build error. The pin now matches the gateway.
+- **No behaviour changes.** The v8 module path is a compile-time rename; the
+  runtime contract is `pluginabi.ABIVersion` 1 with `SchemaVersion` 6, unchanged
+  across v7.3.12, v7.3.20 and v8.0.13. The SDK diff over that range is purely
+  additive — an optional `Path` field on `HostModelExecutionRequest` and
+  `RequestInterceptResponse`, the `HostRoutingResetCooldown` request/response
+  pair, and the matching `host.routing.reset_cooldown` method constant — and this
+  plugin uses none of them. Catalog output is byte-identical.
+- **Dependabot no longer proposes SDK bumps.** The SDK is now in the `ignore`
+  list, matching the rule this project already documented: bumping it changes the
+  compiled artifact and therefore belongs to a release with the full platform
+  matrix, not to routine dependency maintenance.
+
 ## 0.4.1 — 2026-09-23
 
 Keeps the Codex client catalog under the client's size cap.

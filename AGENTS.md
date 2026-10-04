@@ -119,7 +119,7 @@ as what changed and why it mattered, not as a restatement of the commit subject.
 
 ### Before tagging: reconcile the SDK pin
 
-The `github.com/router-for-me/CLIProxyAPI/v7` version in `go.mod` is the plugin
+The `github.com/router-for-me/CLIProxyAPI/v8` version in `go.mod` is the plugin
 SDK this library is compiled against. The host **rejects a plugin built against a
 newer SDK than itself** and accepts an older one, so a lagging pin is safe to run
 but means new host behaviour is invisible to the plugin at compile time — exactly
@@ -137,8 +137,13 @@ Therefore, as part of cutting any release:
 Do not bump the pin outside a release: it changes the compiled artifact, so it
 needs the full platform matrix and live verification like any other change.
 
-**Currently pinned at `v7.3.12` while the reference gateway runs `7.3.15`.** Raise
-it to a 7.3.15-or-later SDK in the next release and drop this paragraph.
+The module path carries the host's major version (`/v7` → `/v8`), so a host major
+bump rewrites every import. That is a compile-time rename only: the runtime
+contract a `.so` negotiates is `pluginabi.ABIVersion` plus `SchemaVersion`, which
+are versioned independently of the module path. Diff `sdk/pluginabi/types.go`
+across the two tags rather than inferring a break from the major number.
+
+**Currently pinned at `v8.0.13`, verified on gateway `8.0.13`.**
 
 The platform matrix mirrors the plugin-capable builds CLIProxyAPI itself ships:
 linux, darwin and windows on amd64 and arm64, plus freebsd/amd64. Native runners
