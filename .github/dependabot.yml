@@ -4,6 +4,11 @@ updates:
   # it via go-version-file, and govulncheck fails on stdlib advisories present
   # in earlier patches. Dependabot keeps that pin moving forward instead of
   # letting it rot until the next release breaks CI.
+  #
+  # The CLIProxyAPI SDK is excluded on purpose: bumping it changes the compiled
+  # artifact and must ship with the full platform matrix and live verification,
+  # so it is a release decision tied to the gateway version rather than routine
+  # maintenance (see AGENTS.md, "Before tagging: reconcile the SDK pin").
   - package-ecosystem: gomod
     directory: "/"
     schedule:
@@ -11,6 +16,8 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "github.com/router-for-me/CLIProxyAPI/*"
     groups:
       go-dependencies:
         patterns:

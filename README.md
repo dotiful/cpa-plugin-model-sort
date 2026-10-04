@@ -137,7 +137,7 @@ inside `StateDirectory`; `/usr/local` is read-only there.
 The service log must show `plugin registered`, not merely `plugin loaded`:
 
 ```
-pluginhost: plugin registered plugin_id=model-sort plugin_name=model-sort version=0.4.1
+pluginhost: plugin registered plugin_id=model-sort plugin_name=model-sort version=0.5.0
 ```
 
 Then confirm the catalog is ordered:
@@ -157,7 +157,7 @@ Restart the service a few times and re-run it; the answer must stay `True`.
   will ignore every `.so`. The official
   [releases](https://github.com/router-for-me/CLIProxyAPI/releases) marked
   `no-plugin` are the ones to avoid.
-- Verified against CLIProxyAPI 7.3.15. The plugin is built against the SDK
+- Verified against CLIProxyAPI 8.0.13. The plugin is built against the SDK
   version pinned in [`go.mod`](go.mod); the host rejects a plugin built against a
   *newer* SDK than itself, so an older pin stays compatible.
 
