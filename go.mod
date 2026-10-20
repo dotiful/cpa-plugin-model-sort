@@ -1,6 +1,6 @@
 module github.com/dotiful/cpa-plugin-model-sort
 
-go 1.26.8
+go 1.26.9
 
 require (
 	github.com/router-for-me/CLIProxyAPI/v8 v8.0.13
